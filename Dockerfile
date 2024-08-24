@@ -5,7 +5,7 @@ RUN mvn clean package -DskipTests
 
 
 EXPOSE 8082
-COPY target/library-management-system-0.0.1-SNAPSHOT.jar application.jar
+COPY library-management-system-0.0.1-SNAPSHOT.jar application.jar
 
 ENTRYPOINT ["java", "-jar", "application.jar"]
 
