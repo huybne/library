@@ -37,14 +37,17 @@ public class SecurityConfig {
     };
     private final String[] PUBLIC = {
             "/messages",
-
+//            "books", "authors","categories"
     };
 
     @Bean
     public UserDetailsService userDetailsService() {
         return new CustomUserDetailsService();
     }
-
+    @Bean
+    public ActiveUserStore activeUserStore(){
+        return new ActiveUserStore();
+    }
     @Autowired
     private CustomeJwtDecoder customeJwtDecoder;
 
@@ -60,11 +63,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
+
         http.authorizeHttpRequests(request ->
                         request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
                                 .requestMatchers(HttpMethod.GET, PUBLIC).permitAll()
                                 .requestMatchers("/", "/webjars/**", "/css/**", "/js/**", "/login").permitAll()
-                                .requestMatchers("/authors/**", "/books/**", "/categories/**").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/authors/**", "/books/**", "/categories/**").permitAll()
                                 .anyRequest().authenticated()
                 )
 

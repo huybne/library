@@ -1,15 +1,19 @@
 package com.ensas.librarymanagementsystem.configuration;
 
-import org.springframework.stereotype.Component;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
+
+@Setter
+@Getter
 public class ActiveUserStore {
     public List<String> users;
 
     public ActiveUserStore() {
         users = new ArrayList<>();
     }
+
 }

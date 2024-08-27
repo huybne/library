@@ -19,6 +19,11 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     @Query("SELECT b FROM Book b JOIN b.authors a WHERE a.id = :author AND LOWER(b.name) LIKE :name ORDER BY b.name ASC")
     Page<Book> findBookByAuthorId(@Param("author") Long author, @Param("name") String name, Pageable pageable);
+
+    long count();
+
+    @Query("SELECT COUNT(b) from Book b")
+    long countQuantity();
 }
 
 

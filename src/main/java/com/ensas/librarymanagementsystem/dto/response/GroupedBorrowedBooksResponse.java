@@ -27,5 +27,7 @@ public class GroupedBorrowedBooksResponse {
         private UUID userId;
         private String username;
         private LocalDate borrowedAt;
+        private LocalDate dueDate;
+        private boolean isOverDue;
     }
 }

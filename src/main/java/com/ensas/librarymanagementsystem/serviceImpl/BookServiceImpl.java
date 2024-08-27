@@ -20,11 +20,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -112,9 +114,8 @@ public Page<BookResponse> getBooks(String keyword, int page, int size) {
     Page<Book> booksPage = bookRepository.findBookByName(keywordWithWildcard, pageable);
 
     // Map từ Page<Book> sang Page<BookResponse>
-    Page<BookResponse> bookResponsesPage = booksPage.map(bookMapper::toBookResponse);
 
-    return bookResponsesPage;
+    return booksPage.map(bookMapper::toBookResponse);
 }
 
     @Override
@@ -124,17 +125,19 @@ public Page<BookResponse> getBooks(String keyword, int page, int size) {
     }
 
     @Override
-    public boolean borrowBook(Long id, String date) {
+    public boolean borrowBook(Long id, String date , String dueDate) {
         Book book = bookRepository.findById(id).orElseThrow(() ->
                 new BookNotFoundException("Book with id " + id + " not found"));
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDate dat1 = LocalDate.parse(date, dateTimeFormatter);
+        LocalDate dat2 = LocalDate.parse(dueDate, dateTimeFormatter);
         Period period = Period.ofMonths(3);
-        if (dat1.isBefore(LocalDate.now().plus(period)) ){
+        if (dat1.isBefore(LocalDate.now().plus(period)) && dat2.isBefore(LocalDate.now().plus(period))){
             Borrow borrow = new Borrow();
             borrow.setUser(getUser());
             borrow.setBook(book);
             borrow.setReturned(false);
+            borrow.setDueDate(dat2);
             borrow.setBorrowedAt(dat1);
             borrowRepository.save(borrow);
             book.setQuantity(book.getQuantity()-1);
@@ -143,7 +146,17 @@ public Page<BookResponse> getBooks(String keyword, int page, int size) {
         }
         return false;
     }
-
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void checkOverdueBooks() {
+        List<Borrow> borrows = borrowRepository.findAllGroup();
+        LocalDate today = LocalDate.now();
+        for (Borrow borrow : borrows) {
+            if (borrow.getDueDate().isBefore(today) && !borrow.isReturned()) {
+                borrow.setOverdue(true);
+                borrowRepository.save(borrow);
+            }
+        }
+    }
     @Override
     public boolean checkIfAlreadyBorrowed(Long id) {
         return borrowRepository.findAlreadyBorrowed(id, getUser().getId()).isPresent();
@@ -173,30 +186,27 @@ public Page<BookResponse> getBooks(String keyword, int page, int size) {
     public Page<GroupedBorrowedBooksResponse> getAllGroupedBorrows(String keyword, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
 
-        // Lấy tất cả các borrow chưa trả theo từ khóa
         Page<Borrow> borrowPage = borrowRepository.findAllByKeyword(keyword, pageable);
 
-        // Map để nhóm các Borrow theo bookId
         Map<Long, List<Borrow>> groupedByBook = borrowPage.stream()
                 .collect(Collectors.groupingBy(borrow -> borrow.getBook().getId()));
 
-        // Chuyển đổi Map thành danh sách DTO
         List<GroupedBorrowedBooksResponse> groupedResponse = groupedByBook.entrySet().stream()
                 .map(entry -> {
                     Long bookId = entry.getKey();
                     List<Borrow> borrows = entry.getValue();
-                    Book book = borrows.get(0).getBook(); // Giả định tất cả các borrow trong nhóm có cùng sách
+                    Book book = borrows.get(0).getBook();
 
-                    // Tạo danh sách các BorrowerInfo
                     List<GroupedBorrowedBooksResponse.BorrowerInfo> borrowers = borrows.stream()
                             .map(borrow -> GroupedBorrowedBooksResponse.BorrowerInfo.builder()
                                     .userId(borrow.getUser().getId())
                                     .username(borrow.getUser().getUsername())
                                     .borrowedAt(borrow.getBorrowedAt())
+                                    .dueDate(borrow.getDueDate())
+                                    .isOverDue(borrow.isOverdue())
                                     .build())
                             .collect(Collectors.toList());
 
-                    // Tạo và trả về DTO cho nhóm hiện tại
                     return GroupedBorrowedBooksResponse.builder()
                             .bookId(bookId)
                             .bookName(book.getName())
@@ -206,28 +216,13 @@ public Page<BookResponse> getBooks(String keyword, int page, int size) {
                 })
                 .collect(Collectors.toList());
 
-        // Tạo lại Page từ danh sách đã nhóm
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), groupedResponse.size());
-        Page<GroupedBorrowedBooksResponse> pageResult = new PageImpl<>(groupedResponse.subList(start, end), pageable, groupedResponse.size());
 
-        return pageResult;
+        return new PageImpl<>(groupedResponse.subList(start, end), pageable, groupedResponse.size());
     }
 
-    //    public Page<AllBorrowedResponse> BorrowedGroupByUser( String keyword, int page, int size) {
-//        Pageable pageable = PageRequest.of(page, size);
-//        String keywordWithWildcard = "%" + keyword.toLowerCase() + "%";
-//        Optional<Borrow> borrow = borrowRepository.findAllGroup();
-//
-//    }
-//@Override
-//public List<AllBorrowedResponse> getAllBorrowedBooks() {
-//    return borrowRepository.findAllBorrowedBooks();
-//}
-//    @Override
-//    public Page<Borrow> getAllBorrowedByUser(String userId, String keyword, int page, int size) {
-//        return borrowRepository.findAllBorrowedByUserId(userId, keyword + "%", PageRequest.of(page, size));
-//    }
+
     @Override
     public Page<Borrow> getAllBorrowsByUserId(UUID userId, String keyword, int page, int size) {
         return borrowRepository.findAllBorrowsByUserId(userId, keyword + "%", PageRequest.of(page, size));
@@ -251,5 +246,14 @@ public Page<BookResponse> getBooks(String keyword, int page, int size) {
         borrowRepository.save(borrow);
         book.setQuantity(book.getQuantity()+1);
         bookRepository.save(book);
+    }
+    @Override
+    public long getBookCount(){
+        return bookRepository.count();
+    }
+
+    @Override
+    public long getBorrowedCount(){
+        return borrowRepository.count();
     }
 }

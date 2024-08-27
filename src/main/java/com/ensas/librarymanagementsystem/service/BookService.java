@@ -7,6 +7,7 @@ import com.ensas.librarymanagementsystem.dto.response.BookResponse;
 import com.ensas.librarymanagementsystem.dto.response.GroupedBorrowedBooksResponse;
 import org.springframework.data.domain.Page;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 public interface BookService {
@@ -18,7 +19,7 @@ public interface BookService {
 
     // Page<Book> getBooks(String keyword, int page, int size);
     Book getBook(Long id);
-    boolean borrowBook(Long id, String date);
+    boolean borrowBook(Long id, String date, String dueDate);
 
     boolean checkIfAlreadyBorrowed(Long id);
 
@@ -55,4 +56,8 @@ public interface BookService {
     Page<Borrow> getAllBorrowsByBookId(Long bookId, String keyword, int page, int size);
 
     void returnBook(Long id);
+
+    long getBookCount();
+
+    long getBorrowedCount();
 }

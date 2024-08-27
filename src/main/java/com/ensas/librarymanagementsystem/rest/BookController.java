@@ -19,10 +19,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -56,10 +54,7 @@ public class BookController {
     }
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteBook(@PathVariable("id") Long id,
-                                        @RequestParam(name = "keyword", defaultValue = "") String keyword,
-                                        @RequestParam(name ="page", defaultValue = "0") int page,
-                                        @RequestParam(name ="size", defaultValue = "5") int size) {
+    public ResponseEntity<?> deleteBook(@PathVariable("id") Long id) {
         bookService.deleteBook(id);
         return ResponseEntity.noContent().build();
     }
@@ -97,6 +92,16 @@ public class BookController {
         return ResponseEntity.ok(groupedBorrows);
     }
 
+    @GetMapping("count-book")
+    public ResponseEntity<Long> getBookCount(){
+        long count = bookService.getBookCount();
+        return ResponseEntity.ok(count);
+    }
+    @GetMapping("count-borrow")
+    public ResponseEntity<Long> getBorrowedCount(){
+        long count = bookService.getBorrowedCount();
+        return ResponseEntity.ok(count);
+    }
 //    @GetMapping("/all-borrowed-books")
 //    public ResponseEntity<Page<Borrow>> getAllBorrowedBooks(@RequestParam(name = "keyword", defaultValue = "") String keyword,
 //                                                            @RequestParam (name = "page", defaultValue = "0") int page,
@@ -198,14 +203,15 @@ public class BookController {
     }
     @GetMapping("/borrow/{id}")
     public ResponseEntity<?> borrow(@PathVariable("id") Long id,
-                                    @RequestParam(name = "date", defaultValue = "") String date) {
-        String error = "";
+                                    @RequestParam(name = "date", defaultValue = "") String date,
+                                    @RequestParam(name = "dueDate", defaultValue = "" )String dueDate ) {
+        String error;
 
         // Kiểm tra nếu sách đã được mượn nhưng chưa được trả lại
         if (!bookService.checkIfAlreadyBorrowed(id)) {
             // Nếu sách chưa được mượn hoặc đã trả, thì cho phép mượn sách
             if (bookService.checkBookQuantity(id)) {
-                if (bookService.borrowBook(id, date)) {
+                if (bookService.borrowBook(id, date, dueDate)) {
                     return ResponseEntity.noContent().build();
                 } else {
                     error = "Max Period is three months from now!";

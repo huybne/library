@@ -47,12 +47,12 @@ public class Book {
             inverseJoinColumns = {@JoinColumn(name = "category_id", referencedColumnName = "id")})
     private List<Category> categories = new ArrayList<>();
 
-    public void addAuthor(Author author){
-        this.authors.add(author);
-        author.getBooks().add(this);
-    }
-    public void addCategory(Category category){
-        this.categories.add(category);
-        category.getBooks().add(this);
-    }
+//    public void addAuthor(Author author){
+//        this.authors.add(author);
+//        author.getBooks().add(this);
+//    }
+//    public void addCategory(Category category){
+//        this.categories.add(category);
+//        category.getBooks().add(this);
+//    }
 }

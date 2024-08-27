@@ -23,6 +23,9 @@ public class    Borrow {
     private boolean isReturned;
     private LocalDate borrowedAt;
     private LocalDate returnedAt;
+    private LocalDate dueDate;
+    private boolean isOverdue = false;
+
     @ManyToOne
     private Book book;
     @ManyToOne
